@@ -5,9 +5,12 @@
 #include <sched.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
+#include "main.h"
 
 int child_process_func(void *args) {
 	printf("Hello from child\n");
+	run("/bin/sh");
 	return EXIT_SUCCESS;
 }
 
@@ -31,6 +34,15 @@ char* allocStackMem() {
 
 	stackTop = stack + STACKSIZE; // Pointer to the end of the stack.
 	return stackTop;
+}
+
+int run(char *cmd) {
+	char *name_args[] = {
+		"/bin/sh",
+		(char *) 0
+	};
+	execvp(cmd, name_args);
+	return EXIT_SUCCESS;
 }
 
 int main() {
