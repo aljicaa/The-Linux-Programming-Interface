@@ -96,6 +96,7 @@ main(int argc, char *argv[])
 
         case 's':   /* Change file offset */
             offset = getLong(&argv[ap][1], GN_ANY_BASE, argv[ap]);
+			//printf("TEST BRO %p", &argv[ap][1]);
             if (lseek(fd, offset, SEEK_SET) == -1)
                 errExit("lseek");
             printf("%s: seek succeeded\n", argv[ap]);
