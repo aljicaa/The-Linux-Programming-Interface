@@ -5,11 +5,13 @@
 #include <sched.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <unistd.h>
 #include "main.h"
 
 int child_process_func(void *args) {
 	printf("Hello from child\n");
+	clearenv(); // Clear the environment, so that we may re-build it.
 	run("/bin/sh");
 	return EXIT_SUCCESS;
 }
@@ -50,13 +52,19 @@ int main() {
 
 	char *stackTop = allocStackMem();
 
-	ssize_t result = clone(child_process_func, stackTop, SIGCHLD, 0); // ssize_t (signed) so we can store negative values (read -1).
-	if (result == -1)
+	int status;
+	pid_t childPID;
+	childPID = clone(child_process_func, stackTop, SIGCHLD, 0); // ssize_t (signed) so we can store negative values (read -1).
+	if (childPID == -1)
 		return EXIT_FAILURE;
+	printf("Clone returned %jd\n", (intmax_t) childPID);
 	
-	ssize_t wait_result = waitpid(-1, NULL, 0);
+	ssize_t wait_result = waitpid(childPID, &status, 0);
+	printf("Wait result printed %zu\n", wait_result);
 	if (wait_result == -1)
 		return EXIT_FAILURE;
+	else
+		printf("Finished waiting for child with status result %d\n", status);
 	printf("Child has terminated\n");
 	
 	return EXIT_SUCCESS;
