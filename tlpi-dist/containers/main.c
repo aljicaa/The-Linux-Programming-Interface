@@ -7,13 +7,18 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <sys/mount.h>
 #include "main.h"
 
-int child_process_func(void *args) {
-	printf("Hello from child\n");
-	clearenv(); // Clear the environment, so that we may re-build it.
-	run("/bin/sh");
-	return EXIT_SUCCESS;
+void setupVariables() {
+	clearenv();
+	setenv("TERM", "xterm-256color", 0);
+	setenv("PATH", "/bin/:/sbin/:usr/bin:/usr/sbin", 0);
+}
+
+void setupRoot(char *folder) {
+	chroot(folder);
+	chdir("/");
 }
 
 char* allocStackMem() {
@@ -47,24 +52,57 @@ int run(char *cmd) {
 	return EXIT_SUCCESS;
 }
 
-int main() {
-	printf("Hello from parent\n");
+int runBash() {
+	char *name_args[] = {
+		"/bin/sh",
+		(char *) 0
+	};
+	execvp("/bin/sh", name_args);
+	return EXIT_SUCCESS;
+}
 
-	char *stackTop = allocStackMem();
+int createChild(void (*childFunc), int flags) {
+	pid_t childPID;
+	//printf("%d\n", CLONE_NEWPID);
+	childPID = clone(childFunc, allocStackMem(), flags, 0); // ssize_t (signed) so we can store negative values (read -1).
+	if (childPID == -1) {
+		printf("Cloning failed");
+		exit(EXIT_FAILURE);
+	}
+	printf("Child/Clone returned %jd\n", (intmax_t) childPID);
 
 	int status;
-	pid_t childPID;
-	childPID = clone(child_process_func, stackTop, SIGCHLD, 0); // ssize_t (signed) so we can store negative values (read -1).
-	if (childPID == -1)
-		return EXIT_FAILURE;
-	printf("Clone returned %jd\n", (intmax_t) childPID);
-	
-	ssize_t wait_result = waitpid(childPID, &status, 0);
-	printf("Wait result printed %zu\n", wait_result);
-	if (wait_result == -1)
-		return EXIT_FAILURE;
+	ssize_t return_child_pid = waitpid(childPID, &status, 0);
+	printf("Finished waiting on child process, return childPID is: %zu\n", return_child_pid);
+	if (return_child_pid == -1) {
+		printf("Return child PID was -1, exiting\n");
+		exit(EXIT_FAILURE); // Instead of exit(), we can return EXIT_FAILURE as a status code and handle the code in main().
+	}
 	else
 		printf("Finished waiting for child with status result %d\n", status);
+	return EXIT_SUCCESS;
+}
+
+int child_process_func(void *args) {
+	printf("Child PID: %d\n", getpid());
+	
+	sethostname("container", 10);
+	setupVariables();
+	setupRoot("./root");
+	
+	mount("proc", "/proc", "proc", 0, 0);
+	createChild(runBash, SIGCHLD); // run /bin/sh in a new child process, within the container.
+	umount("/proc");
+
+	//run("/bin/sh");
+	return EXIT_SUCCESS;
+}
+
+int main() {
+	printf("Parent PID %d\n", getpid());
+
+	createChild(child_process_func, CLONE_NEWPID | CLONE_NEWUTS | SIGCHLD);
+
 	printf("Child has terminated\n");
 	
 	return EXIT_SUCCESS;
