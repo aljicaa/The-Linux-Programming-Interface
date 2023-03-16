@@ -20,7 +20,7 @@ void write_to_file(char *path, char *value) {
 
 #define CGROUP_FOLDER "/sys/fs/cgroup/pids/container/"
 #define CGROUP_PROC_PATH "/sys/fs/cgroup/pids/container/cgroup.procs"
-#define CGROUP_PROC_MAX_PATH "/sys/fs/cgroup/pids/container/cgroup.max.descendants"
+#define CGROUP_PROC_MAX_PATH "/sys/fs/cgroup/pids/container/cgroup.controllers"
 #define CGROUP_NOTIFY "/sys/fs/cgroup/pids/container/notify_on_release"
 void limitProcessCreation() {
 	//mkdir(CGROUP_FOLDER, S_IRUSR | S_IWUSR);
@@ -31,8 +31,8 @@ void limitProcessCreation() {
 
 	//printf("PID_AS_STR %s", pid_as_str);
 	write_to_file(CGROUP_PROC_PATH, pid_as_str);
-	write_to_file(CGROUP_NOTIFY, "1");
 	write_to_file(CGROUP_PROC_MAX_PATH, "5");
+	write_to_file(CGROUP_NOTIFY, "1");
 }
 
 void setupVariables() {
