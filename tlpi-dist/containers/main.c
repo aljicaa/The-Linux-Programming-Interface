@@ -88,8 +88,9 @@ int runBash() {
 
 int createChild(void (*childFunc), int flags) {
 	pid_t childPID;
+	char *stackTop = allocStackMem();
 	//printf("%d\n", CLONE_NEWPID);
-	childPID = clone(childFunc, allocStackMem(), flags, 0); // ssize_t (signed) so we can store negative values (read -1).
+	childPID = clone(childFunc, stackTop, flags, 0); // ssize_t (signed) so we can store negative values (read -1).
 	if (childPID == -1) {
 		printf("Cloning failed");
 		exit(EXIT_FAILURE);
@@ -105,13 +106,14 @@ int createChild(void (*childFunc), int flags) {
 	}
 	else
 		printf("Finished waiting for child with status result %d\n", status);
+	free(stackTop-65536);
 	return EXIT_SUCCESS;
 }
 
 int child_process_func(void *args) {
 	printf("Child PID: %d\n", getpid());
-	mkdir("/sys/fs/cgroup/pids/", S_IRUSR | S_IWUSR);
-	mkdir("/sys/fs/cgroup/pids/container/", S_IRUSR | S_IWUSR);
+	//mkdir("/sys/fs/cgroup/pids/", S_IRUSR | S_IWUSR);
+	//mkdir("/sys/fs/cgroup/pids/container/", S_IRUSR | S_IWUSR);
 	limitProcessCreation();
 	
 	sethostname("container", 10);
