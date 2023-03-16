@@ -8,7 +8,32 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <sys/mount.h>
+#include <sys/stat.h>
+#include <string.h>
 #include "main.h"
+
+void write_to_file(char *path, char *value) {
+	int fd = open(path, O_WRONLY | O_APPEND);
+	write(fd, value, strlen(value));
+	close(fd);
+}
+
+#define CGROUP_FOLDER "/sys/fs/cgroup/pids/container/"
+#define CGROUP_PROC_PATH "/sys/fs/cgroup/pids/container/cgroup.procs"
+#define CGROUP_PROC_MAX_PATH "/sys/fs/cgroup/pids/container/cgroup.max.descendants"
+#define CGROUP_NOTIFY "/sys/fs/cgroup/pids/container/notify_on_release"
+void limitProcessCreation() {
+	//mkdir(CGROUP_FOLDER, S_IRUSR | S_IWUSR);
+	
+	int childPID = getpid();
+	char pid_as_str[25];
+	sprintf(pid_as_str, "%d", childPID);
+
+	//printf("PID_AS_STR %s", pid_as_str);
+	write_to_file(CGROUP_PROC_PATH, pid_as_str);
+	write_to_file(CGROUP_NOTIFY, "1");
+	write_to_file(CGROUP_PROC_MAX_PATH, "5");
+}
 
 void setupVariables() {
 	clearenv();
@@ -85,6 +110,9 @@ int createChild(void (*childFunc), int flags) {
 
 int child_process_func(void *args) {
 	printf("Child PID: %d\n", getpid());
+	mkdir("/sys/fs/cgroup/pids/", S_IRUSR | S_IWUSR);
+	mkdir("/sys/fs/cgroup/pids/container/", S_IRUSR | S_IWUSR);
+	limitProcessCreation();
 	
 	sethostname("container", 10);
 	setupVariables();
